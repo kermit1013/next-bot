@@ -11,7 +11,7 @@ export const config = {
 
 async function runMiddleware(req: NextApiRequest, res: NextApiResponse, fn: Middleware) {
   return new Promise((resolve, reject) => {
-    fn(req, res, (result) => 
+    fn(req, res, (result) =>
       result instanceof Error
         ? reject(result)
         : resolve(result)
@@ -29,29 +29,64 @@ const handler: NextApiHandler = async (req: NextApiRequest, res: NextApiResponse
       const body: WebhookRequestBody = req.body;
       await Promise.all(body.events.map(event => (async () => {
         if (event.mode === 'active') {
-          switch(event.type) {
-            case 'message': {
-              const name = event.source.userId
-                ? (await line.client.getProfile(event.source.userId)).displayName 
-                : 'User';
-              await line.client.replyMessage(event.replyToken, {
-                type: 'text',
-                text: `Hi, ${name}!`
-              });
-              break;
-            }
-            case 'follow': {
-              // Do something.
-              break;
+            switch (event.type) {
+              case 'message': {
+                const url = "https://opendata.cwb.gov.tw/api/v1/rest/datastore/O-B0075-001?Authorization=rdec-key-123-45678-011121314";
+                let resp = new Array();
+                fetch(url).then(res => {
+                  return res.json();
+              }).then(data => {
+                  let target = data.Records.SeaSurfaceObs.Location.find(function (el: { Station: { StationID: string; }; }) {
+                      return el.Station.StationID === '46694A'
+                  }
+                  );
+          
+                  let target1 = target.StationObsTimes.StationObsTime.filter(function (el: { DateTime: string | number | Date; }) {
+                      const now = new Date();
+                      const past = new Date().setHours(now.getHours() - 5);
+                      return new Date(el.DateTime) <= new Date(); 
+                  }
+                  );
+                  
+
+                  target1.forEach((element: { WeatherElements: any; DateTime: any; }) => {
+                      let wave = element.WeatherElements
+                      let anemometer = wave.PrimaryAnemometer
+                      let text = ` DateTime: ${element.DateTime}
+                      WaveHeight: ${wave.WaveHeight} 
+                      WaveDirection: ${wave.WaveDirectionDescription} 
+                      WavePeriod: ${wave.WavePeriod}
+                      WindSpeed:  ${anemometer.WindSpeed}
+                      MaximumWindSpeed: ${anemometer.MaximumWindSpeed}
+                      WindDirection: ${anemometer.WindDirection}`
+                      console.log(text);
+                      resp.push(text)
+                  });
+          
+                  // res.send(resp);
+              })
+
+                const name = event.source.userId
+                  ? (await line.client.getProfile(event.source.userId)).displayName
+                  : 'User';
+                await line.client.replyMessage(event.replyToken, {
+                  type: 'text',
+                  text: `Hi, ${resp}!`
+                });
+                break;
+              }
+              case 'follow': {
+                // Do something.
+                break;
+              }
             }
           }
-        }
       })()));
       res.status(200).end();
     } else {
       res.status(405).end();
     }
-  } catch(e) {
+  } catch (e) {
     if (e instanceof Error) {
       res.status(500).json({ name: e.name, message: e.message });
     } else {
