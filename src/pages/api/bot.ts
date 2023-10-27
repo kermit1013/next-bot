@@ -71,7 +71,7 @@ const handler: NextApiHandler = async (req: NextApiRequest, res: NextApiResponse
                 : 'User';
               await line.client.replyMessage(event.replyToken, {
                 type: 'text',
-                text: `${line.client.getMessageContent}!`
+                text: `${line.client.getMessageContent(event.message.id)}!`
               });
               break;
             }
